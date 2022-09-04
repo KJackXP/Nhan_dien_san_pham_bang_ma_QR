@@ -1,19 +1,134 @@
-import cv2 as cv
+from tkinter import *
+from tkinter.ttk import *
+from tkinter import messagebox
+import tkinter
+import cv2
+import PIL.Image, PIL.ImageTk
+from time import sleep
+from threading import Thread
 from pyzbar import pyzbar
-cap = cv.VideoCapture()
-while True:
-    ret, frame = cap.read()
+import sys
+import glob
+import serial
+import serial.tools.list_ports
+import  functools
+
+window = Tk()
+window.title("Tkinter OpenCV")
+
+video = cv2.VideoCapture(0)
+canvas_w = video.get(cv2.CAP_PROP_FRAME_WIDTH)
+canvas_h = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+canvas = Canvas(window, width = canvas_w, height= canvas_h )
+canvas.pack()
+
+bw = 0
+
+def handleBW():
+    global bw
+    bw = 1 - bw
+
+button = Button(window,text = "Black & White", command=handleBW)
+button.pack()
+
+photo = None
+count = 0
+
+def send_to_server():
+    global button
+    sleep(5)
+    button.configure(text="Welcom to")
+    return
+#Tieu de
+Lbltl = tkinter.Label(text="Phan loai san pham", fg="red", font=("Arial", 20))
+Lbltl.place(x=320, y=5, width=360, height=30)
+
+Lbltl2 = tkinter.Label(text="QR code", fg = "red", font=("Arial", 20))
+Lbltl2.place(x=340, y= 35, width=360, height=30)
+#Muc dich
+Lbltl3 = tkinter.Label(text="Chon Sp: ", fg="blue", font=("Arial", 20))
+Lbltl3.place(x=320, y=95, width=360, height=30)
+#radio button
+rad1 = Radiobutton(window,text='Sp 1', value="107563 - QRCODE ")
+
+rad2 = Radiobutton(window,text='Sp 2', value="102356 - QRCODE ")
+
+rad3 = Radiobutton(window,text='Sp 3', value=3)
+
+btn = Button(window, text="Chon")
+
+rad1.place(x=320, y=125, width=80, height=25)
+
+rad2.place(x=400, y=125, width=80, height=25)
+
+rad3.place(x=480, y=125, width=80, height=25)
+
+btn.place(x=560, y=125, width=80, height=30)
+#Dien ma QR
+txt1 = tkinter.Text()
+txt1.place(x=320, y=185, width=520, height=30)
+
+txt2 = tkinter.Text()
+txt2.place(x=320, y=245, width=520, height=30)
+
+txt3 = tkinter.Text()
+txt3.place(x=320, y=305, width=520, height=30)
+#Ham doc Ma QR
+def update_frame():
+    global canvas, photo, bw, count
+    # Doc tu camera
+    ret, frame = video.read()
+    # Ressize
+    frame = cv2.resize(frame, dsize=None, fx=0.5, fy=0.5)
+    # Chuyen he mau
+    if bw == 0:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    else:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    #nhan dien ma QR
     barcodes = pyzbar.decode(frame)
     for barcode in barcodes:
+        #Ve hinh chu nhat
         (x, y, w, h) = barcode.rect
-        cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+        cv2.rectangle(frame, (x,y), (x+w, y+h), (0, 255, 255), 2)
+        #Lay du lieu Barcode
         barcodeData = barcode.data.decode("utf-8")
         barcodeType = barcode.type
-        texxt = "{} - {}".format(barcodeData, barcodeType)
-        print(text)
-        cv.putText(frame, text, (x - 10, y - 10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-    cv.imshow('Doc Ma Vach - Ma QR', frame)
-    if cv.waitKey(1) == ord('q'):
-        break
-cap.release()
-cv.destroyWindow()
+        #Trich xuat du lieu
+        textQR = "{} - {} ".format(barcodeData, barcodeType)
+        print(textQR)
+        #Hien ket qua tren hinh
+        cv2.putText(frame, textQR, (x-10, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+
+    #Hien ket qua tren giao dien
+        if textQR == "107563 - QRCODE ":
+            txt1.delete(1.0)
+            txt1.insert(1.0, textQR)
+            sleep(3)
+        elif textQR == "102356 - QRCODE ":
+            txt2.delete(1.0)
+            txt2.insert(1.0, textQR)
+            sleep(3)
+        else:
+            txt3.delete(1.0)
+            txt3.insert(1.0, textQR)
+            sleep(3)
+
+    # Convert hanh image TK
+    photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
+    # Show
+    canvas.create_image(0,0, image = photo, anchor=tkinter.NW)
+
+    count = count +1
+    if count%10==0:
+        #send_to_server()
+        thread = Thread(target=send_to_server)
+        thread.start()
+
+    window.after(15, update_frame)
+
+update_frame()
+#cong COM
+
+window.mainloop()
